@@ -2,4 +2,15 @@
 # This .gitignore file was automatically created by Microsoft(R) Visual Studio.
 ################################################################################
 
-/RosellaRepl/.vs/RosellaRepl/v16/Server/sqlite3
+/RosellaInterpreter/.vs
+/RosellaInterpreter/RosellaRepl/obj
+/RosellaInterpreter/RosellaRepl/bin
+/RosellaInterpreter/RosellaInterpreter/obj
+/RosellaInterpreter/RosellaInterpreter/bin
+/RosellaInterpreter/.vs
+/.vs
+/RosellaInterpreter/packages
+/RosellaInterpreter/RosellaAstGenerator/bin/Debug
+/RosellaInterpreter/RosellaAstGenerator/obj/Debug
+/RosellaInterpreter/RosellaTests/bin/Debug
+/RosellaInterpreter/RosellaTests/obj/Debug
