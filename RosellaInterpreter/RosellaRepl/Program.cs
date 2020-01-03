@@ -1,25 +1,19 @@
 ﻿using RosellaInterpreter;
 using System;
 using System.IO;
+using static RosellaInterpreter.Interpreter;
 
 namespace RosellaRepl
 {
     class Program
     {
         private static bool hadError;
+        private static bool hadRuntimeError;
+
+        private static readonly Interpreter interpreter = new Interpreter(runtimeError);
 
         static void Main(string[] args)
         {
-            Expr expression = new Expr.Binary(
-        new Expr.Unary(
-            new Token(TokenType.MINUS, "-", null, 1),
-            new Expr.Literal(123)),
-        new Token(TokenType.STAR, "*", null, 1),
-        new Expr.Grouping(
-            new Expr.Literal(45.67)));
-
-            Console.WriteLine(new AstPrinter().print(expression));
-
             if (args.Length > 1)
             {
                 Console.WriteLine("Usage: RosellaRepl [script]");
@@ -39,6 +33,9 @@ namespace RosellaRepl
         {
             var text = File.ReadAllText(path);
             run(text);
+
+            if (hadError) Environment.Exit(65);
+            if (hadRuntimeError) Environment.Exit(70);
         }
 
         private static void runPrompt()
@@ -55,17 +52,35 @@ namespace RosellaRepl
         {
             var scanner = new Scanner(source, error);
             var tokens = scanner.scanTokens();
+            var parser = new Parser(tokens, tokenError);
+            var statements = parser.parse();
 
-            foreach (var token in tokens)
-            {
-                Console.WriteLine(token);
-            }
+            if (hadError) return;
 
+            interpreter.interpret(statements);
         }
 
         private static void error(int line, string message)
         {
             report(line, "", message);
+        }
+
+        private static void tokenError(Token token, string message)
+        {
+            if (token.type == TokenType.EOF)
+            {
+                report(token.line, " at end", message);
+            }
+            else
+            {
+                report(token.line, $" at '{token.lexeme}'", message);
+            }
+        }
+
+        private static void runtimeError(RuntimeError error)
+        {
+            Console.Error.WriteLine($"{error.Message} \n[line {error.token.line} ]");
+            hadRuntimeError = true;
         }
 
         private static void report(int line, string where, string message)

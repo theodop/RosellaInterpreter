@@ -17,13 +17,24 @@ namespace RosellaAstGenerator
 
             var definitions = new[]
             {
+                "Assign   : Token name, Expr value",
                 "Binary   : Expr left, Token @operator, Expr right",
                 "Grouping : Expr expression",
                 "Literal  : object value",
-                "Unary    : Token @operator, Expr right"
+                "Unary    : Token @operator, Expr right",
+                "Variable : Token name"
             };
 
             defineAst(outputDir, "Expr", definitions);
+
+            definitions = new[]
+            {
+                "Expression : Expr expression",
+                "Print      : Expr expression",
+                "Var        : Token name, Expr initializer"
+            };
+
+            defineAst(outputDir, "Stmt", definitions);
         }
 
         private static void defineAst(string outputDir, string baseClass, string[] types)

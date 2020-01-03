@@ -2,6 +2,7 @@
 
 namespace RosellaInterpreter
 {
+    /*
     public class AstPrinter : Expr.Visitor<string>
     {
         public string print(Expr expr)
@@ -46,5 +47,5 @@ namespace RosellaInterpreter
 
             return builder.ToString();
         }
-    }
+    }*/
 }

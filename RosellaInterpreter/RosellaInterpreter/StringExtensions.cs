@@ -8,6 +8,7 @@ namespace RosellaInterpreter
 {
     public static class StringExtensions
     {
-        public static string JavaSubstring(this string text, int from, int to) => text.Substring(from, to - from);
+        public static string JavaSubstring(this string text, int from, int to) 
+            => text.Substring(from, to - from);
     }
 }
