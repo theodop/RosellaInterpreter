@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace RosellaAstGenerator
 {
-    public class Program
+    public class RosellaAstGeneratorProgram
     {
         public static void Main(string[] args)
         {
@@ -19,8 +19,10 @@ namespace RosellaAstGenerator
             {
                 "Assign   : Token name, Expr value",
                 "Binary   : Expr left, Token @operator, Expr right",
+                "Call     : Expr callee, Token paren, IList<Expr> arguments",
                 "Grouping : Expr expression",
                 "Literal  : object value",
+                "Logical  : Expr left, Token @operator, Expr right",
                 "Unary    : Token @operator, Expr right",
                 "Variable : Token name"
             };
@@ -29,9 +31,14 @@ namespace RosellaAstGenerator
 
             definitions = new[]
             {
+                "Block      : IList<Stmt> statements",
                 "Expression : Expr expression",
+                "Function   : Token name, IList<Token> @params, IList<Stmt> body",
+                "If         : Expr condition, Stmt thenBranch, Stmt elseBranch",
                 "Print      : Expr expression",
-                "Var        : Token name, Expr initializer"
+                "Return     : Token keyword, Expr value",
+                "Var        : Token name, Expr initializer",
+                "While      : Expr condition, Stmt body"
             };
 
             defineAst(outputDir, "Stmt", definitions);
@@ -46,6 +53,7 @@ namespace RosellaAstGenerator
             using (var fs = File.Open(path, FileMode.Create))
             using (var writer = new StreamWriter(fs))
             {
+                writer.WriteLine("using System.Collections.Generic;");
                 writer.WriteLine("namespace RosellaInterpreter {");
                 writer.WriteLine($"  public abstract class {baseClass} " + "{");
                 defineVisitor(writer, baseClass, types);

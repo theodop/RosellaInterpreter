@@ -57,6 +57,11 @@ namespace RosellaRepl
 
             if (hadError) return;
 
+            var resolver = new Resolver(interpreter, tokenError);
+            resolver.resolve(statements);
+
+            if (hadError) return;
+
             interpreter.interpret(statements);
         }
 

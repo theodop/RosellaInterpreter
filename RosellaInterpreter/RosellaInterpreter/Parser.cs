@@ -33,6 +33,7 @@ namespace RosellaInterpreter
         {
             try
             {
+                if (match(FUN)) return function("function");
                 if (match(VAR)) return varDeclaration();
 
                 return statement();
@@ -46,9 +47,80 @@ namespace RosellaInterpreter
 
         private Stmt statement()
         {
+            if (match(FOR)) return forStatement();
+            if (match(IF)) return ifStatement();
             if (match(PRINT)) return printStatement();
+            if (match(RETURN)) return returnStatement();
+            if (match(WHILE)) return whileStatement();
+            if (match(LEFT_BRACE)) return new Stmt.Block(block());
 
             return expressionStatement();
+        }
+
+        private Stmt forStatement()
+        {
+            consume(LEFT_PAREN, "Expect '(' after 'for'.");
+
+            Stmt initializer;
+            if (match(SEMICOLON))
+            {
+                initializer = null;
+            } 
+            else if (match(VAR))
+            {
+                initializer = varDeclaration();
+            }
+            else
+            {
+                initializer = expressionStatement();
+            }
+
+            Expr condition = null;
+            if (!check(SEMICOLON))
+            {
+                condition = expression();
+            }
+            consume(SEMICOLON, "Expect ';' after loop condition.");
+
+            Expr increment = null;
+            if (!check(RIGHT_PAREN))
+            {
+                increment = expression();
+            }
+            consume(RIGHT_PAREN, "Expect '(' after for clauses.");
+
+            var body = statement();
+
+            if (increment != null)
+            {
+                body = new Stmt.Block(new[] { body, new Stmt.Expression(increment) });
+            }
+
+            if (condition == null) condition = new Expr.Literal(true);
+            body = new Stmt.While(condition, body);
+
+            if (initializer != null)
+            {
+                body = new Stmt.Block(new[] { initializer, body });
+            }
+
+            return body;
+        }
+
+        private Stmt ifStatement()
+        {
+            consume(LEFT_PAREN, "Expect '(' after 'if'.");
+            Expr condition = expression();
+            consume(RIGHT_PAREN, "Expect ')' after if condition.");
+
+            var thenBranch = statement();
+            Stmt elseBranch = null;
+            if (match (ELSE))
+            {
+                elseBranch = statement();
+            }
+
+            return new Stmt.If(condition, thenBranch, elseBranch);
         }
 
         private Stmt printStatement()
@@ -56,6 +128,19 @@ namespace RosellaInterpreter
             var value = expression();
             consume(SEMICOLON, "Expect ';' after value.");
             return new Stmt.Print(value);
+        }
+
+        private Stmt returnStatement()
+        {
+            var keyword = previous();
+            Expr value = null;
+            if (!check(SEMICOLON))
+            {
+                value = expression();
+            }
+
+            consume(SEMICOLON, "Expect ';' after return value.");
+            return new Stmt.Return(keyword, value);
         }
 
         private Stmt varDeclaration()
@@ -73,11 +158,60 @@ namespace RosellaInterpreter
             return new Stmt.Var(name, initializer);
         }
 
+        private Stmt whileStatement()
+        {
+            consume(LEFT_PAREN, "Expect '(' after 'while'.");
+            var condition = expression();
+            consume(RIGHT_PAREN, "Expect ')' after condition.");
+            var body = statement();
+
+            return new Stmt.While(condition, body);
+        }
+
         private Stmt expressionStatement()
         {
             var expr = expression();
             consume(SEMICOLON, "Expect ';' after expression.");
             return new Stmt.Expression(expr);
+        }
+
+        private Stmt.Function function(string kind)
+        {
+            var name = consume(IDENTIFIER, $"Expect {kind} name.");
+            consume(LEFT_PAREN, $"Expect '(' after {kind} name.");
+            var parameters = new LinkedList<Token>();
+            if (!check(RIGHT_PAREN))
+            {
+                do
+                {
+                    if (parameters.Count >= 255)
+                    {
+                        error(peek(), "Cannot have more than 255 parameters.");
+                    }
+
+                    parameters.AddLast(consume(IDENTIFIER, "Expect parameter name."));
+                } while (match(COMMA));
+            }
+            consume(RIGHT_PAREN, "Expect ')' after parameters.");
+
+            consume(LEFT_BRACE, $"Expect '{{' before {kind} body.");
+            var body = block();
+
+            return new Stmt.Function(name, parameters.ToArray(), body);
+        }
+
+        private IList<Stmt> block()
+        {
+            var statements = new LinkedList<Stmt>();
+
+            while (!check(RIGHT_BRACE) && !isAtEnd())
+            {
+                statements.AddLast(declaration());
+            }
+
+            consume(RIGHT_BRACE, "Expect '}' after block.");
+
+            return statements.ToList();
         }
 
         private Expr expression()
@@ -87,7 +221,7 @@ namespace RosellaInterpreter
 
         private Expr assignment()
         {
-            var expr = equality();
+            var expr = or();
 
             if (match(EQUAL))
             {
@@ -101,6 +235,34 @@ namespace RosellaInterpreter
                 }
 
                 error(equals, "Invalid assignment target.");
+            }
+
+            return expr;
+        }
+
+        private Expr or()
+        {
+            var expr = and();
+
+            while (match(OR))
+            {
+                var @operator = previous();
+                var right = and();
+                expr = new Expr.Logical(expr, @operator, right);
+            }
+
+            return expr;
+        }
+
+        private Expr and()
+        {
+            var expr = equality();
+
+            while (match(AND))
+            {
+                var @operator = previous();
+                var right = equality();
+                expr = new Expr.Logical(expr, @operator, right);
             }
 
             return expr;
@@ -171,7 +333,47 @@ namespace RosellaInterpreter
                 return new Expr.Unary(@operator, right);
             }
 
-            return primary();
+            return call();
+        }
+
+        private Expr call()
+        {
+            var expr = primary();
+
+            while (true)
+            {
+                if (match(LEFT_PAREN))
+                {
+                    expr = finishCall(expr);
+                }
+                else
+                {
+                    break;
+                }
+            }
+
+            return expr;
+        }
+
+        private Expr finishCall(Expr callee)
+        {
+            var arguments = new List<Expr>();
+
+            if (!check(RIGHT_PAREN))
+            {
+                do
+                {
+                    if (arguments.Count() >= 255)
+                    {
+                        error(peek(), "Cannot have more than 255 arguments");
+                    }
+                    arguments.Add(expression());
+                } while (match(COMMA));
+            }
+
+            var paren = consume(RIGHT_PAREN, "Expect ')' after arguments.");
+
+            return new Expr.Call(callee, paren, arguments);
         }
 
         private Expr primary()
@@ -247,9 +449,9 @@ namespace RosellaInterpreter
                     case RETURN:
                         return;
                 }
-            }
 
-            advance();
+                advance();
+            }
         }
 
         private bool check(TokenType type)
